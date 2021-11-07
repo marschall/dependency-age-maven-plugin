@@ -4,9 +4,16 @@ import static org.apache.maven.plugins.annotations.LifecyclePhase.VERIFY;
 import static org.apache.maven.plugins.annotations.ResolutionScope.RUNTIME;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -72,12 +79,32 @@ public class ListDependenciesAgeMojo extends AbstractMojo {
       try (JarFile jarFile = new JarFile(artifact.getFile())) {
         JarEntry manifest = (JarEntry) jarFile.getEntry("META-INF/MANIFEST.MF");
         if (manifest != null) {
-          return manifest.getCreationTime();
+          FileTime creationTime = manifest.getCreationTime();
+          if (creationTime != null) {
+            return creationTime;
+          }
         }
       } catch (IOException e) {
         throw new MojoExecutionException("could not open jar of: " + artifact, e);
       }
     }
+    String uriString = "jar:" + artifact.getFile().toURI();
+    URI jarUri;
+    try {
+      jarUri = new URI(uriString);
+    } catch (URISyntaxException e) {
+      throw new MojoExecutionException("invalid uri: " + uriString, e);
+    }
+    try (FileSystem jarFileSystem = FileSystems.newFileSystem(jarUri , Collections.emptyMap())) {
+      Path manifestPath = jarFileSystem.getPath("META-INF", "MANIFEST.MF");
+      if (Files.exists(manifestPath)) {
+        return (FileTime) Files.getAttribute(manifestPath, "creationTime");
+//        return Files.readAttributes(manifestPath, BasicFileAttributes.class).creationTime();
+      }
+    } catch (IOException e) {
+      throw new MojoExecutionException("could not open jar file system of: " + artifact, e);
+    }
+    this.getLog().warn("Could not determine age of: " + dependency.getArtifact());
     return null;
   }
 
