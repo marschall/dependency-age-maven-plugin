@@ -15,7 +15,7 @@ import io.takari.maven.testing.executor.MavenVersions;
 import io.takari.maven.testing.executor.junit.MavenJUnitTestRunner;
 
 @RunWith(MavenJUnitTestRunner.class)
-@MavenVersions("3.8.3")
+@MavenVersions("3.8.4")
 public class ListDependenciesAgeMojoTests {
 
   @Rule
@@ -24,7 +24,9 @@ public class ListDependenciesAgeMojoTests {
   private final MavenRuntime mavenRuntime;
 
   public ListDependenciesAgeMojoTests(MavenRuntimeBuilder builder) throws Exception {
-    this.mavenRuntime = builder.build();
+    this.mavenRuntime = builder
+            .withCliOptions("--batch-mode")
+            .build();
   }
 
   @Test
